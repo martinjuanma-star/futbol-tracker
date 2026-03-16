@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="⚽ Tracker">
+<title>⚽ Fútbol Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyALZzNue6CmSP0mCQzjwB-HjxQZNfyEePc",
+    authDomain: "benicio-futbol-tracker.firebaseapp.com",
+    projectId: "benicio-futbol-tracker",
+    storageBucket: "benicio-futbol-tracker.firebasestorage.app",
+    messagingSenderId: "879527474225",
+    appId: "1:879527474225:web:b3ddf0222a46b31bb4d110"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
+  const REF = doc(db, "tracker", "shared");
+
+  // Expose to global scope for the main script
+  window._fbSave = async (data) => {
+    try { await setDoc(REF, { records: JSON.stringify(data) }); } catch(e) { console.warn("FB save error", e); }
+  };
+
+  window._fbListen = (callback) => {
+    onSnapshot(REF, (snap) => {
+      if (snap.exists()) {
+        try { callback(JSON.parse(snap.data().records)); } catch {}
+      }
+    });
+  };
+
+  window._fbReady = true;
+  document.dispatchEvent(new Event("fb-ready"));
+</script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --bg:      #080c10;
+    --surf:    #0f1923;
+    --card:    #111d2a;
+    --card2:   #162032;
+    --border:  #1e2d3d;
+    --green:   #22c55e;
+    --green2:  #16a34a;
+    --orange:  #f97316;
+    --blue:    #3b82f6;
+    --purple:  #a855f7;
+    --red:     #ef4444;
+    --yellow:  #eab308;
+    --text:    #e2e8f0;
+    --muted:   #64748b;
+    --fh: 'Bebas Neue', sans-serif;
+    --fb: 'DM Sans', sans-serif;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--fb);
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* ── APP SHELL ─────────────────────────────────────────── */
+  #app { height: 100vh; display: flex; flex-direction: column; max-width: 430px; margin: 0 auto; position: relative; }
+
+  /* ── HEADER ─────────────────────────────────────────────── */
+  .hdr {
+    background: var(--surf);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 16px 10px;
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .hdr-left { display: flex; align-items: center; gap: 10px; }
+  .hdr-ball { font-size: 26px; line-height: 1; }
+  .hdr-title { font-family: var(--fh); font-size: 22px; color: var(--green); letter-spacing: 1px; line-height: 1; }
+  .hdr-sub   { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; }
+  .hdr-ring  {
+    width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .hdr-ring svg { position: absolute; top: 0; left: 0; width: 44px; height: 44px; transform: rotate(-90deg); }
+  .hdr-ring-pct { font-family: var(--fh); font-size: 13px; color: var(--green); position: relative; z-index: 1; }
+
+  /* ── SCROLL AREA ─────────────────────────────────────────── */
+  .scroll {
+    flex: 1; overflow-y: auto; overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: calc(68px + var(--safe-bottom));
+  }
+  .scroll::-webkit-scrollbar { display: none; }
+
+  /* ── BOTTOM NAV ─────────────────────────────────────────── */
+  .nav {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: var(--surf); border-top: 1px solid var(--border);
+    display: flex;
+    padding-bottom: var(--safe-bottom);
+    flex-shrink: 0;
+  }
+  .nav-btn {
+    flex: 1; padding: 10px 0 8px;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); font-family: var(--fb); font-size: 9px;
+    text-transform: uppercase; letter-spacing: .5px; transition: color .15s;
+  }
+  .nav-btn.on { color: var(--green); }
+  .nav-btn svg { width: 20px; height: 20px; }
+
+  /* ── SECTION TITLE ─────────────────────────────────────── */
+  .stitle {
+    font-family: var(--fh); font-size: 22px; letter-spacing: 1px;
+    padding: 18px 16px 10px;
+  }
+
+  /* ── CARD ───────────────────────────────────────────────── */
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px;
+  }
+
+  /* ════════════════════════════════════════════════════════
+     TAB: INICIO
+  ════════════════════════════════════════════════════════ */
+  .hero {
+    background: linear-gradient(145deg, #0a1f15 0%, #0d1a2a 100%);
+    padding: 18px 16px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .hero-name { font-family: var(--fh); font-size: 30px; color: var(--green); line-height: 1; }
+  .hero-info { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; margin-top: 4px; }
+  .hero-prog {
+    margin-top: 14px;
+    background: var(--border); border-radius: 99px; height: 8px; overflow: hidden;
+  }
+  .hero-prog-fill {
+    height: 100%; background: linear-gradient(90deg, var(--green2), var(--green));
+    border-radius: 99px; transition: width .6s ease;
+  }
+  .hero-prog-lbl {
+    display: flex; justify-content: space-between;
+    font-size: 10px; color: var(--muted); margin-top: 5px;
+  }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; padding: 14px 16px; }
+  .stat-box {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px 8px; text-align: center;
+  }
+  .stat-n { font-family: var(--fh); font-size: 28px; }
+  .stat-l { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-top: 2px; }
+
+  .bloque-legend { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 14px; }
+  .b-pill {
+    font-size: 9px; padding: 3px 10px; border-radius: 99px;
+    border: 1px solid; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+  }
+
+  .inicio-mes-list { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
+  .inicio-mes {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px; display: flex; align-items: center; gap: 12px;
+    cursor: pointer; transition: border-color .15s;
+    -webkit-user-select: none; user-select: none;
+  }
+  .inicio-mes:active { border-color: var(--green); background: var(--card2); }
+  .im-circle {
+    width: 50px; height: 50px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; position: relative;
+  }
+  .im-circle svg { position: absolute; top: 0; left: 0; width: 50px; height: 50px; transform: rotate(-90deg); }
+  .im-pct { font-family: var(--fh); font-size: 15px; position: relative; z-index: 1; }
+  .im-info { flex: 1; min-width: 0; }
+  .im-mes  { font-weight: 700; font-size: 14px; }
+  .im-obj  { font-size: 10px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .im-bloque { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin-top: 3px; }
+  .im-arrow { color: var(--muted); font-size: 18px; flex-shrink: 0; }
+
+  /* ════════════════════════════════════════════════════════
+     TAB: CALENDARIO (semanas de un mes)
+  ════════════════════════════════════════════════════════ */
+  .cal-mes-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px 8px;
+  }
+  .cal-mes-name { font-family: var(--fh); font-size: 22px; }
+  .cal-nav-btn {
+    width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border);
+    background: var(--card); color: var(--text); font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: background .15s;
+  }
+  .cal-nav-btn:active { background: var(--card2); }
+
+  .cal-bloque-badge {
+    margin: 0 16px 12px; padding: 8px 12px; border-radius: 10px; border: 1px solid;
+    font-size: 11px; font-weight: 600;
+  }
+  .cal-obj { font-size: 10px; opacity: .75; margin-top: 2px; }
+
+  .sem-tabs { display: flex; gap: 6px; padding: 0 16px 12px; }
+  .sem-tab {
+    flex: 1; padding: 8px 4px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--card); color: var(--muted); font-size: 11px; font-weight: 600;
+    cursor: pointer; text-align: center; transition: all .15s;
+  }
+  .sem-tab.on { background: var(--green); border-color: var(--green); color: #000; }
+
+  .dias-list { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
+  .dia-row {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+  }
+  .dia-done-btn {
+    width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+    border: 2px solid var(--border); background: var(--card2);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all .15s;
+  }
+  .dia-done-btn.done { background: var(--green); border-color: var(--green); }
+  .dia-done-btn svg { width: 18px; height: 18px; }
+  .dia-info { flex: 1; min-width: 0; }
+  .dia-name { font-weight: 700; font-size: 14px; }
+  .dia-type { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .dia-nota-badge {
+    font-size: 9px; padding: 2px 7px; border-radius: 99px;
+    background: var(--card2); border: 1px solid var(--border); color: var(--muted);
+    margin-top: 3px; display: inline-block;
+  }
+  .dia-edit-btn {
+    padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--card2); color: var(--muted); font-size: 11px; font-weight: 600;
+    cursor: pointer; flex-shrink: 0; transition: all .15s;
+  }
+  .dia-edit-btn:active { background: var(--card); color: var(--text); }
+
+  /* ════════════════════════════════════════════════════════
+     TAB: PROGRESO
+  ════════════════════════════════════════════════════════ */
+  .prog-global {
+    margin: 0 16px 14px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px;
+  }
+  .prog-g-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .prog-g-title { font-family: var(--fh); font-size: 18px; }
+  .prog-g-pct { font-family: var(--fh); font-size: 36px; color: var(--green); line-height: 1; }
+  .prog-bar { background: var(--border); border-radius: 99px; height: 10px; overflow: hidden; }
+  .prog-bar-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--green2), var(--green)); transition: width .6s ease; }
+  .prog-g-sub { font-size: 10px; color: var(--muted); margin-top: 6px; }
+
+  .prog-mes-list { padding: 0 16px; display: flex; flex-direction: column; gap: 6px; }
+  .prog-mes-row {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px 14px;
+  }
+  .pmr-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .pmr-name { font-weight: 600; font-size: 13px; }
+  .pmr-pct  { font-family: var(--fh); font-size: 16px; }
+  .pmr-bar  { background: var(--border); border-radius: 99px; height: 5px; overflow: hidden; }
+  .pmr-fill { height: 100%; border-radius: 99px; transition: width .5s ease; }
+  .pmr-sub  { font-size: 9px; color: var(--muted); margin-top: 4px; }
+
+  /* ════════════════════════════════════════════════════════
+     TAB: CARGAS
+  ════════════════════════════════════════════════════════ */
+  .cargas-intro { padding: 0 16px 12px; font-size: 12px; color: var(--muted); }
+
+  .cargas-mes-sel {
+    display: flex; gap: 6px; padding: 0 16px 12px;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+  }
+  .cargas-mes-sel::-webkit-scrollbar { display: none; }
+  .cms-btn {
+    flex-shrink: 0; padding: 6px 12px; border-radius: 99px;
+    border: 1px solid var(--border); background: var(--card);
+    color: var(--muted); font-size: 11px; font-weight: 600; cursor: pointer;
+    transition: all .15s;
+  }
+  .cms-btn.on { background: var(--green); border-color: var(--green); color: #000; }
+
+  .cargas-list { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
+  .carga-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px;
+  }
+  .cc-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .cc-dia  { font-weight: 700; font-size: 13px; }
+  .cc-sem  { font-size: 10px; color: var(--muted); }
+  .cc-nota { font-size: 11px; color: var(--muted); margin-bottom: 8px; padding: 6px 10px; background: var(--card2); border-radius: 8px; }
+  .cc-cargas { display: flex; flex-direction: column; gap: 4px; }
+  .cc-carga-row { display: flex; justify-content: space-between; align-items: center; }
+  .cc-ej   { font-size: 11px; color: var(--muted); }
+  .cc-val  { font-size: 12px; font-weight: 700; color: var(--orange); }
+
+  /* ════════════════════════════════════════════════════════
+     MODAL
+  ════════════════════════════════════════════════════════ */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 200;
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .modal {
+    background: var(--surf); border-radius: 20px 20px 0 0;
+    width: 100%; max-width: 430px;
+    padding: 20px 16px calc(20px + var(--safe-bottom));
+    max-height: 85vh; overflow-y: auto;
+    border-top: 1px solid var(--border);
+  }
+  .modal::-webkit-scrollbar { display: none; }
+  .modal-title { font-family: var(--fh); font-size: 20px; margin-bottom: 4px; }
+  .modal-sub   { font-size: 11px; color: var(--muted); margin-bottom: 16px; }
+  .modal-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 6px; margin-top: 14px; }
+  .modal-input {
+    width: 100%; padding: 10px 12px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--card2);
+    color: var(--text); font-family: var(--fb); font-size: 14px;
+    outline: none;
+  }
+  .modal-input:focus { border-color: var(--green); }
+  textarea.modal-input { resize: none; min-height: 70px; }
+  .carga-field { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+  .carga-field label { font-size: 12px; flex: 1; color: var(--text); }
+  .carga-field input {
+    width: 90px; padding: 8px 10px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--card2);
+    color: var(--text); font-family: var(--fb); font-size: 14px; text-align: center;
+    outline: none;
+  }
+  .carga-field input:focus { border-color: var(--orange); }
+  .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
+  .btn-cancel {
+    flex: 1; padding: 14px; border-radius: 12px; border: 1px solid var(--border);
+    background: var(--card); color: var(--muted); font-family: var(--fb); font-size: 15px; font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-save {
+    flex: 2; padding: 14px; border-radius: 12px; border: none;
+    background: var(--green); color: #000; font-family: var(--fb); font-size: 15px; font-weight: 700;
+    cursor: pointer;
+  }
+  .btn-save:active { background: var(--green2); }
+
+  /* ── Misc ──────────────────────────────────────────────── */
+  .empty { text-align: center; padding: 40px 16px; color: var(--muted); font-size: 13px; }
+  .spacer { height: 10px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="hdr">
+    <div class="hdr-left">
+      <div class="hdr-ball">⚽</div>
+      <div>
+        <div class="hdr-title">FÚTBOL TRACKER</div>
+        <div class="hdr-sub" id="sync-badge" style="color:#eab308">🟡 Conectando…</div>
+      </div>
+    </div>
+    <div class="hdr-ring">
+      <svg viewBox="0 0 44 44">
+        <circle cx="22" cy="22" r="18" fill="none" stroke="#1e2d3d" stroke-width="4"/>
+        <circle id="ring-circle" cx="22" cy="22" r="18" fill="none" stroke="#22c55e" stroke-width="4"
+          stroke-dasharray="113.1" stroke-dashoffset="113.1" stroke-linecap="round"/>
+      </svg>
+      <span class="hdr-ring-pct" id="ring-pct">0%</span>
+    </div>
+  </div>
+
+  <div class="scroll" id="scroll-area">
+    <!-- content injected by JS -->
+  </div>
+
+  <nav class="nav">
+    <button class="nav-btn on" onclick="showTab('inicio')" id="nav-inicio">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Inicio
+    </button>
+    <button class="nav-btn" onclick="showTab('cal')" id="nav-cal">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      Semanas
+    </button>
+    <button class="nav-btn" onclick="showTab('prog')" id="nav-prog">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-6"/></svg>
+      Progreso
+    </button>
+    <button class="nav-btn" onclick="showTab('cargas')" id="nav-cargas">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 5v14M18 5v14M6 12h12M3 7h3M3 17h3M18 7h3M18 17h3"/></svg>
+      Cargas
+    </button>
+    <button class="nav-btn" onclick="showTab('lunch')" id="nav-lunch">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2z"/><path d="M12 8v4l3 3"/></svg>
+      Lunchera
+    </button>
+  </nav>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay" style="display:none" onclick="closeModal(event)">
+  <div class="modal" id="modal-box">
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-sub"  id="modal-sub"></div>
+    <div class="modal-label">Nota de sesión</div>
+    <textarea class="modal-input" id="modal-nota" placeholder="¿Cómo salió? ¿Alguna observación?"></textarea>
+    <div class="modal-label">Cargas usadas</div>
+    <div id="modal-cargas-fields"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModalBtn()">Cancelar</button>
+      <button class="btn-save"   onclick="saveModal()">Guardar ✓</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── DATA ────────────────────────────────────────────────────────────────────
+const PLAN = [
+  {mes:"Abril 2025",     bloque:"BASE",          color:"#22c55e",
+   objetivo:"Adaptar el cuerpo al volumen extra de trabajo.",
+   semanas:4, sesiones:["Lunes","Martes","Miércoles","Jueves","Viernes"],
+   tipos:["Fuerza + Potencia","Entren. Club","Entren. Club","Entren. Club","Velocidad + Core"]},
+
+  {mes:"Mayo 2025",      bloque:"BASE",          color:"#22c55e",
+   objetivo:"Ganar coordinación y estabilidad.",
+   semanas:4, sesiones:["Lunes","Martes","Miércoles","Jueves","Viernes"],
+   tipos:["Fuerza + Potencia","Entren. Club","Entren. Club","Entren. Club","Velocidad + Core"]},
+
+  {mes:"Junio 2025",     bloque:"BASE",          color:"#22c55e",
+   objetivo:"Consolidar la base — TEST FÍSICO.",
+   semanas:4, sesiones:["Lunes","Martes","Miércoles","Jueves","Viernes"],
+   tipos:["Fuerza + Potencia","Entren. Club","Entren. Club","Entren. Club","Velocidad + Core"]},
+
+  {mes:"Julio 2025",     bloque:"DESARROLLO",    color:"#3b82f6",
+   objetivo:"Introducir fuerza funcional progresiva.",
+   semanas:4, sesiones:["Lunes","Martes","Miércoles","Jueves","Viernes"],
+   tipos:["Fuerza + Potencia","Entren. Club","Entren. Club","Entren. Club","Velocidad + Core"]},
+
+  {mes:"Agosto 2025",    bloque:"DESARROLLO",    color:"#3b82f6",
+   objetivo:"Aumentar potencia y volumen de trabajo.",
+   semanas:4, sesiones:["Lunes","Martes","Miércoles","Jueves","Viernes"],
+   tipos:["Fuerza + Potencia","Entren. Club","Entren. Club","Entren. Club","Velocidad + Core"]},
+
+  {mes:"Septiembre 2025",bloque:"DESARROLLO",    color:"#3b82f6",
+   objetivo:"Pico de desarrollo — TEST FÍSICO.",
+   semanas:4, sesiones:["Lunes","Martes","Miércoles","Jueves","Viernes"],
+   tipos:["Fuerza + Potencia","Entren. Club","Entren. Club","Entren. Club","Velocidad + Core"]},
+
+  {mes:"Octubre 2025",   bloque:"PICO",          color:"#f97316",
+   objetivo:"Velocidad explosiva máxima y fuerza de piernas.",
+   semanas:4, sesiones:["Lunes","Martes","Miércoles","Jueves","Viernes"],
+   tipos:["Fuerza + Potencia","Entren. Club","Entren. Club","Entren. Club","Velocidad + Core"]},
+
+  {mes:"Noviembre 2025", bloque:"PICO",          color:"#f97316",
+   objetivo:"Mantener el pico físico con carga controlada.",
+   semanas:4, sesiones:["Lunes","Martes","Miércoles","Jueves","Viernes"],
+   tipos:["Fuerza + Potencia","Entren. Club","Entren. Club","Entren. Club","Velocidad + Core"]},
+
+  {mes:"Diciembre 2025", bloque:"PICO",          color:"#f97316",
+   objetivo:"Final de temporada — reducir carga gradualmente.",
+   semanas:4, sesiones:["Lunes","Martes","Miércoles","Jueves","Viernes"],
+   tipos:["Fuerza + Potencia","Entren. Club","Entren. Club","Entren. Club","Velocidad + Core"]},
+
+  {mes:"Enero 2026",     bloque:"MANTENIMIENTO", color:"#a855f7",
+   objetivo:"Transición activa — no perder lo ganado.",
+   semanas:4, sesiones:["Lunes","Martes","Miércoles","Jueves","Viernes"],
+   tipos:["Fuerza + Potencia","Entren. Club","Entren. Club","Entren. Club","Velocidad + Core"]},
+
+  {mes:"Febrero 2026",   bloque:"MANTENIMIENTO", color:"#a855f7",
+   objetivo:"Preparar la base del nuevo ciclo.",
+   semanas:4, sesiones:["Lunes","Martes","Miércoles","Jueves","Viernes"],
+   tipos:["Fuerza + Potencia","Entren. Club","Entren. Club","Entren. Club","Velocidad + Core"]},
+
+  {mes:"Marzo 2026",     bloque:"MANTENIMIENTO", color:"#a855f7",
+   objetivo:"Cierre de ciclo — TEST FÍSICO FINAL.",
+   semanas:4, sesiones:["Lunes","Martes","Miércoles","Jueves","Viernes"],
+   tipos:["Fuerza + Potencia","Entren. Club","Entren. Club","Entren. Club","Velocidad + Core"]},
+];
+
+// Ejercicios con descripción y carga sugerida por bloque
+// Estructura: { nombre, desc, carga: [B1, B2, B3, B4] }
+const RUTINAS = {
+  "Lunes": {
+    titulo: "💪 FUERZA + POTENCIA",
+    calor: "5 min soga + movilidad cadera/rodilla/tobillo",
+    bloques: [
+      {
+        nombre: "POTENCIA (calidad máxima)",
+        ejercicios: [
+          { nombre:"Saltos al frente y atrás",   desc:"Dos pies, línea en el piso",      series:"3×10",  cargas:["Peso corporal","Peso corporal","Peso corporal","Peso corporal"] },
+          { nombre:"Sprint en patio",             desc:"15 m ida y vuelta, salida parado",series:"4 rep", cargas:["10 m","15 m","20 m","20 m máx esfuerzo"] },
+        ]
+      },
+      {
+        nombre: "FUERZA TREN INFERIOR",
+        ejercicios: [
+          { nombre:"Sentadilla goblet",           desc:"KB o mancuerna al pecho",          series:"3×10", cargas:["KB 4 kg","KB 8 kg","KB 12 kg","KB 12 kg + tempo"] },
+          { nombre:"Zancadas con mancuernas",     desc:"Paso largo, rodilla casi al piso", series:"3×8c/p",cargas:["Sin peso","MC 2×3 kg","MC 2×5 kg","MC 2×8 kg"] },
+          { nombre:"Sentadilla con barra",        desc:"Barra en trapecios, espalda recta",series:"3×8",  cargas:["Barra sola ~5 kg","Barra + 2×2.5 kg","Barra + 2×5 kg","Barra + 2×7.5 kg"] },
+          { nombre:"Hip thrust con KB",           desc:"Espalda en silla, empuje de cadera",series:"3×10",cargas:["KB 4 kg","KB 8 kg","KB 12 kg","KB 12 kg"] },
+        ]
+      },
+      {
+        nombre: "FUERZA TREN SUPERIOR",
+        ejercicios: [
+          { nombre:"Flexiones de brazos",         desc:"Codo a 45°, pecho al piso",        series:"3×8",  cargas:["Normales","Pies elevados","Pies elevados + pausa","Con mochila ~3 kg"] },
+          { nombre:"Remo con mancuerna",          desc:"Una mano en silla, tirá al codo",   series:"3×8c/lado",cargas:["MC 3 kg","MC 5 kg","MC 8 kg","MC 10 kg"] },
+          { nombre:"Curl bíceps con barra",       desc:"Agarre a la anchura de hombros",    series:"3×10", cargas:["Barra sola","Barra + 2×2.5 kg","Barra + 2×5 kg","Barra + 2×5 kg"] },
+          { nombre:"Press de hombros MC",         desc:"De pie o sentado, empuje arriba",   series:"3×8",  cargas:["MC 2×2 kg","MC 2×3 kg","MC 2×4 kg","MC 2×5 kg"] },
+        ]
+      },
+    ],
+    vuelta: "Elongación: cuádriceps, isquio, gemelos, hombros — 30 seg c/u"
+  },
+  "Viernes": {
+    titulo: "⚡ VELOCIDAD + CORE",
+    calor: "3×30 seg soga + skipping + pasos laterales",
+    bloques: [
+      {
+        nombre: "ESCALERA + REACCIÓN",
+        ejercicios: [
+          { nombre:"Escalera — Icky Shuffle",      desc:"Dos pies adentro, uno afuera",      series:"3 pasadas",cargas:["Lento-técnico","Ritmo medio","Velocidad máx","Velocidad máx"] },
+          { nombre:"Escalera — Lateral 1 pie",     desc:"Un pie por cuadro, lateral",         series:"3 pasadas",cargas:["Técnico","Medio","Máx","Máx + variante"] },
+          { nombre:"Sprint de reacción",           desc:"Señal visual → salida explosiva 5 m", series:"8-10 rep",cargas:["5 m","5-8 m","8-10 m","10 m cambio dir."] },
+          { nombre:"Pelota medicinal — pecho",     desc:"Lanzamiento explosivo contra pared",  series:"3×8",     cargas:["PM 3 kg","PM 3 kg","PM 3 kg","PM 3 kg"] },
+        ]
+      },
+      {
+        nombre: "CORE ESPECÍFICO",
+        ejercicios: [
+          { nombre:"Plancha frontal",              desc:"Cuerpo recto, no hundir cadera",      series:"3 series",cargas:["30 seg","40 seg","50 seg","60 seg"] },
+          { nombre:"Plancha lateral",              desc:"Cada lado, cadera arriba",             series:"3 c/lado",cargas:["20 seg","30 seg","40 seg","45 seg"] },
+          { nombre:"Russian twist",                desc:"Sentado en V, rotación controlada",   series:"3×12",    cargas:["Sin peso","PM 3 kg","PM 3 kg","MC 2 kg"] },
+          { nombre:"Dead bug",                     desc:"Lumbar pegada al piso, extensión alt",series:"3×10",    cargas:["Peso corp","Peso corp","Lento","Con pausa"] },
+          { nombre:"Superman",                     desc:"Boca abajo, elevar brazos y piernas",  series:"3×10",    cargas:["Peso corp","Peso corp","Peso corp","Con pausa 2 seg"] },
+          { nombre:"Press francés con barra",      desc:"Acostado, baja barra a frente",        series:"3×8",     cargas:["Barra sola","Barra + 2×1 kg","Barra + 2×2.5 kg","Barra + 2×2.5 kg"] },
+        ]
+      },
+    ],
+    vuelta: "Elongación: isquio, psoas, aductores, gemelos — 40 seg c/u. ¡Clave en delanteros!"
+  }
+};
+
+// Para el selector de cargas en modal (lista plana para registro)
+const EJERCICIOS = {
+  "Lunes": [
+    "Sentadilla goblet","Zancadas con mancuernas","Sentadilla con barra",
+    "Hip thrust con KB","Flexiones de brazos","Remo con mancuerna",
+    "Curl bíceps con barra","Press de hombros MC"
+  ],
+  "Viernes": [
+    "Escalera Icky Shuffle","Escalera Lateral","Sprint de reacción",
+    "Pelota medicinal pecho","Plancha frontal","Plancha lateral",
+    "Russian twist","Press francés con barra"
+  ],
+};
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let records = {};   // "mIdx-sem-dIdx" → {done, nota, cargas:{ej:val}}
+let curTab  = 'inicio';
+let calMes  = 0;
+let calSem  = 1;
+let modalKey = null;
+
+const SK = 'futbol-tracker-v2';
+
+// ─── SYNC STATE ───────────────────────────────────────────────────────────────
+let syncStatus = 'connecting'; // 'connecting' | 'online' | 'offline'
+let saveTimeout = null;
+
+function updateSyncBadge() {
+  const el = document.getElementById('sync-badge');
+  if (!el) return;
+  if (syncStatus === 'online')      { el.textContent = '🟢 Sincronizado'; el.style.color = '#22c55e'; }
+  else if (syncStatus === 'offline'){ el.textContent = '🔴 Sin conexión'; el.style.color = '#ef4444'; }
+  else                               { el.textContent = '🟡 Conectando…';  el.style.color = '#eab308'; }
+}
+
+function loadData() {
+  try { const d = localStorage.getItem(SK); if(d) records = JSON.parse(d); } catch{}
+}
+
+function saveData() {
+  // Always save locally first
+  try { localStorage.setItem(SK, JSON.stringify(records)); } catch{}
+  // Debounce Firebase save
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(async () => {
+    if (window._fbSave) {
+      try {
+        await window._fbSave(records);
+        syncStatus = 'online';
+      } catch {
+        syncStatus = 'offline';
+      }
+      updateSyncBadge();
+    }
+  }, 800);
+}
+
+loadData();
+
+// Start Firebase listener when ready
+function startFirebaseSync() {
+  if (!window._fbListen) return;
+  syncStatus = 'connecting';
+  updateSyncBadge();
+  window._fbListen((remoteRecords) => {
+    // Merge: remote wins for keys it has, keep local for rest
+    records = { ...records, ...remoteRecords };
+    try { localStorage.setItem(SK, JSON.stringify(records)); } catch{}
+    syncStatus = 'online';
+    updateSyncBadge();
+    render();
+  });
+}
+
+if (window._fbReady) {
+  startFirebaseSync();
+} else {
+  document.addEventListener('fb-ready', startFirebaseSync);
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function rk(mIdx,sem,dIdx){ return `${mIdx}-${sem}-${dIdx}`; }
+
+function mesStats(mIdx){
+  const m = PLAN[mIdx];
+  const total = m.semanas * m.sesiones.length;
+  let done = 0;
+  for(let s=1;s<=m.semanas;s++)
+    m.sesiones.forEach((_,dIdx)=>{ if(records[rk(mIdx,s,dIdx)]?.done) done++; });
+  return {total, done, pct: total ? Math.round(done/total*100) : 0};
+}
+
+function globalStats(){
+  let total=0, done=0;
+  PLAN.forEach((_,i)=>{const s=mesStats(i);total+=s.total;done+=s.done;});
+  return {total, done, pct: total ? Math.round(done/total*100) : 0};
+}
+
+function updateRing(){
+  const g = globalStats();
+  const circ = 2 * Math.PI * 18; // r=18 → ~113.1
+  const off  = circ - (circ * g.pct / 100);
+  const el   = document.getElementById('ring-circle');
+  const lbl  = document.getElementById('ring-pct');
+  if(el)  el.style.strokeDashoffset = off;
+  if(lbl) lbl.textContent = g.pct + '%';
+}
+
+function pctColor(pct){
+  if(pct >= 80) return '#22c55e';
+  if(pct >= 50) return '#eab308';
+  if(pct > 0)   return '#f97316';
+  return '#64748b';
+}
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+function showTab(tab){
+  curTab = tab;
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('on'));
+  document.getElementById('nav-'+tab).classList.add('on');
+  render();
+}
+
+// ─── RENDER ROUTER ────────────────────────────────────────────────────────────
+function render(){
+  const el = document.getElementById('scroll-area');
+  if(curTab === 'inicio')  el.innerHTML = renderInicio();
+  if(curTab === 'cal')     el.innerHTML = renderCal();
+  if(curTab === 'prog')    el.innerHTML = renderProg();
+  if(curTab === 'cargas')  el.innerHTML = renderCargas();
+  if(curTab === 'lunch')   el.innerHTML = renderLunch();
+  updateRing();
+  el.scrollTop = 0;
+}
+
+// ─── INICIO ───────────────────────────────────────────────────────────────────
+function renderInicio(){
+  const g = globalStats();
+  const sesTotal = g.total, sesDone = g.done;
+
+  let mesesDone = 0;
+  PLAN.forEach((_,i)=>{ if(mesStats(i).pct >= 80) mesesDone++; });
+
+  let html = `
+  <div class="hero">
+    <div class="hero-name">PLAN ANUAL ⚽</div>
+    <div class="hero-info">Delantero · 12 años · Abr 2025 – Mar 2026</div>
+    <div class="hero-prog" style="margin-top:14px">
+      <div class="hero-prog-fill" style="width:${g.pct}%"></div>
+    </div>
+    <div class="hero-prog-lbl">
+      <span>${sesDone} sesiones completadas</span>
+      <span style="color:var(--green);font-weight:700">${g.pct}%</span>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-box">
+      <div class="stat-n" style="color:var(--green)">${g.pct}%</div>
+      <div class="stat-l">Cumplimiento</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-n" style="color:var(--blue)">${sesDone}</div>
+      <div class="stat-l">Sesiones hechas</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-n" style="color:var(--orange)">${mesesDone}</div>
+      <div class="stat-l">Meses +80%</div>
+    </div>
+  </div>
+
+  <div class="bloque-legend">
+    <span class="b-pill" style="color:#22c55e;border-color:#22c55e">BASE</span>
+    <span class="b-pill" style="color:#3b82f6;border-color:#3b82f6">DESARROLLO</span>
+    <span class="b-pill" style="color:#f97316;border-color:#f97316">PICO</span>
+    <span class="b-pill" style="color:#a855f7;border-color:#a855f7">MANTENIMIENTO</span>
+  </div>
+
+  <div class="inicio-mes-list">`;
+
+  PLAN.forEach((m,i) => {
+    const s = mesStats(i);
+    const circ = 2*Math.PI*18;
+    const off  = circ - (circ * s.pct / 100);
+    const col  = m.color;
+    html += `
+    <div class="inicio-mes" onclick="goCalMes(${i})">
+      <div class="im-circle">
+        <svg viewBox="0 0 50 50">
+          <circle cx="25" cy="25" r="18" fill="none" stroke="#1e2d3d" stroke-width="4"/>
+          <circle cx="25" cy="25" r="18" fill="none" stroke="${col}" stroke-width="4"
+            stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" stroke-linecap="round"/>
+        </svg>
+        <span class="im-pct" style="color:${col}">${s.pct}%</span>
+      </div>
+      <div class="im-info">
+        <div class="im-mes">${m.mes}</div>
+        <div class="im-obj">${m.objetivo}</div>
+        <div class="im-bloque" style="color:${col}">${m.bloque}</div>
+      </div>
+      <div class="im-arrow">›</div>
+    </div>`;
+  });
+
+  html += `</div><div class="spacer"></div>`;
+  return html;
+}
+
+function goCalMes(i){
+  calMes = i; calSem = 1;
+  showTab('cal');
+}
+
+// ─── CALENDARIO ───────────────────────────────────────────────────────────────
+function renderCal(){
+  const m = PLAN[calMes];
+
+  // sem tabs
+  let semTabs = '';
+  for(let s=1;s<=m.semanas;s++){
+    let semDone=0;
+    m.sesiones.forEach((_,dIdx)=>{ if(records[rk(calMes,s,dIdx)]?.done) semDone++; });
+    const allDone = semDone === m.sesiones.length;
+    semTabs += `<div class="sem-tab ${calSem===s?'on':''}" onclick="setSem(${s})">
+      Sem ${s}${allDone?' ✓':''}
+    </div>`;
+  }
+
+  // días
+  let diasHtml = '';
+  m.sesiones.forEach((dia, dIdx) => {
+    const k    = rk(calMes, calSem, dIdx);
+    const rec  = records[k] || {};
+    const done = !!rec.done;
+    const tipo = m.tipos[dIdx];
+    const notaPreview = rec.nota ? `<span class="dia-nota-badge">📝 ${rec.nota.slice(0,22)}${rec.nota.length>22?'…':''}</span>` : '';
+    const checkSvg = done
+      ? `<svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>`
+      : `<svg viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>`;
+
+    diasHtml += `
+    <div class="dia-row">
+      <button class="dia-done-btn ${done?'done':''}" onclick="toggleDone(${calMes},${calSem},${dIdx})">
+        ${checkSvg}
+      </button>
+      <div class="dia-info">
+        <div class="dia-name">${dia}</div>
+        <div class="dia-type" style="color:${done?'var(--green)':'var(--muted)'}">${tipo}</div>
+        ${notaPreview}
+      </div>
+      <button class="dia-edit-btn" onclick="openModal(${calMes},${calSem},${dIdx})">
+        Detalle
+      </button>
+    </div>`;
+  });
+
+  // progress de este mes
+  const ms = mesStats(calMes);
+
+  return `
+  <div class="cal-mes-nav">
+    <button class="cal-nav-btn" onclick="prevMes()">‹</button>
+    <div>
+      <div class="cal-mes-name">${m.mes}</div>
+    </div>
+    <button class="cal-nav-btn" onclick="nextMes()">›</button>
+  </div>
+
+  <div class="cal-bloque-badge" style="color:${m.color};border-color:${m.color};background:${m.color}18">
+    <div style="font-weight:700;font-size:11px">${m.bloque} — ${ms.pct}% completado (${ms.done}/${ms.total} sesiones)</div>
+    <div class="cal-obj">${m.objetivo}</div>
+  </div>
+
+  <div class="sem-tabs">${semTabs}</div>
+  <div class="dias-list">${diasHtml}</div>
+  <div class="spacer"></div>`;
+}
+
+function prevMes(){ calMes = Math.max(0, calMes-1); calSem=1; render(); }
+function nextMes(){ calMes = Math.min(PLAN.length-1, calMes+1); calSem=1; render(); }
+function setSem(s){ calSem = s; render(); }
+
+function toggleDone(mIdx, sem, dIdx){
+  const k = rk(mIdx,sem,dIdx);
+  records[k] = { ...(records[k]||{}), done: !(records[k]?.done) };
+  saveData(); render();
+}
+
+// ─── PROGRESO ─────────────────────────────────────────────────────────────────
+function renderProg(){
+  const g = globalStats();
+  let rows = '';
+  PLAN.forEach((m,i) => {
+    const s   = mesStats(i);
+    const col = pctColor(s.pct);
+    rows += `
+    <div class="prog-mes-row" onclick="goCalMes(${i})">
+      <div class="pmr-top">
+        <div>
+          <div class="pmr-name">${m.mes}</div>
+          <div class="pmr-sub" style="color:${m.color}">${m.bloque}</div>
+        </div>
+        <div class="pmr-pct" style="color:${col}">${s.pct}%</div>
+      </div>
+      <div class="pmr-bar">
+        <div class="pmr-fill" style="width:${s.pct}%;background:${col}"></div>
+      </div>
+      <div class="pmr-sub">${s.done} de ${s.total} sesiones</div>
+    </div>`;
+  });
+
+  return `
+  <div class="stitle">PROGRESO ANUAL</div>
+  <div class="prog-global">
+    <div class="prog-g-top">
+      <div>
+        <div class="prog-g-title">Plan Completo</div>
+        <div style="font-size:11px;color:var(--muted)">${g.done} de ${g.total} sesiones</div>
+      </div>
+      <div class="prog-g-pct">${g.pct}%</div>
+    </div>
+    <div class="prog-bar">
+      <div class="prog-bar-fill" style="width:${g.pct}%"></div>
+    </div>
+    <div class="prog-g-sub">Tocá un mes para ver el detalle</div>
+  </div>
+  <div class="prog-mes-list">${rows}</div>
+  <div class="spacer"></div>`;
+}
+
+// ─── CARGAS ───────────────────────────────────────────────────────────────────
+function renderCargas(){
+  // mes selector
+  let selHtml = '';
+  PLAN.forEach((m,i) => {
+    selHtml += `<button class="cms-btn ${i===calMes?'on':''}" onclick="setCarMes(${i})">${m.mes.split(' ')[0]}</button>`;
+  });
+
+  // recopilar entradas con cargas o notas para el mes seleccionado
+  const m = PLAN[calMes];
+  let cards = '';
+  let found = false;
+
+  for(let s=1; s<=m.semanas; s++){
+    m.sesiones.forEach((dia, dIdx) => {
+      const k   = rk(calMes, s, dIdx);
+      const rec = records[k];
+      if(!rec || (!rec.nota && (!rec.cargas || Object.keys(rec.cargas).length===0))) return;
+      found = true;
+      let cargasHtml = '';
+      if(rec.cargas){
+        Object.entries(rec.cargas).forEach(([ej,val]) => {
+          if(val) cargasHtml += `<div class="cc-carga-row"><span class="cc-ej">${ej}</span><span class="cc-val">${val}</span></div>`;
+        });
+      }
+      cards += `
+      <div class="carga-card">
+        <div class="cc-top">
+          <div class="cc-dia">${dia} — Semana ${s}</div>
+          <div class="cc-sem" style="color:${rec.done?'var(--green)':'var(--muted)'}">
+            ${rec.done ? '✓ Completado' : '— Pendiente'}
+          </div>
+        </div>
+        ${rec.nota ? `<div class="cc-nota">📝 ${rec.nota}</div>` : ''}
+        ${cargasHtml ? `<div class="cc-cargas">${cargasHtml}</div>` : ''}
+      </div>`;
+    });
+  }
+
+  if(!found) cards = `<div class="empty">Sin registros aún en este mes.<br>Completá sesiones y agregá cargas desde la pestaña Semanas.</div>`;
+
+  return `
+  <div class="stitle">CARGAS Y NOTAS</div>
+  <p class="cargas-intro">Historial de pesos y observaciones por mes.</p>
+  <div class="cargas-mes-sel">${selHtml}</div>
+  <div class="cargas-list">${cards}</div>
+  <div class="spacer"></div>`;
+}
+
+function setCarMes(i){ calMes = i; render(); }
+
+// ─── MODAL ────────────────────────────────────────────────────────────────────
+function getBloqueIdx(mIdx){
+  const bloque = PLAN[mIdx].bloque;
+  return {BASE:0, DESARROLLO:1, PICO:2, MANTENIMIENTO:3}[bloque] ?? 0;
+}
+
+function openModal(mIdx, sem, dIdx){
+  modalKey = {mIdx, sem, dIdx};
+  const m    = PLAN[mIdx];
+  const dia  = m.sesiones[dIdx];
+  const k    = rk(mIdx,sem,dIdx);
+  const rec  = records[k] || {};
+  const bIdx = getBloqueIdx(mIdx);
+  const rutina = RUTINAS[dia];
+
+  document.getElementById('modal-title').textContent = dia + ' — Semana ' + sem;
+  document.getElementById('modal-sub').textContent   = m.mes + ' · ' + m.bloque;
+  document.getElementById('modal-nota').value        = rec.nota || '';
+
+  let fieldsHtml = '';
+
+  if(rutina){
+    // Calentamiento
+    fieldsHtml += `<div style="background:#0a1f15;border:1px solid #22c55e33;border-radius:10px;padding:10px 12px;margin-bottom:10px">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#22c55e;margin-bottom:4px">🔥 CALENTAMIENTO</div>
+      <div style="font-size:11px;color:var(--muted)">${rutina.calor}</div>
+    </div>`;
+
+    // Bloques de ejercicios
+    rutina.bloques.forEach(blq => {
+      fieldsHtml += `<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--orange);margin:12px 0 6px">${blq.nombre}</div>`;
+      blq.ejercicios.forEach(ej => {
+        const sugerida = ej.cargas[bIdx];
+        const savedVal = rec.cargas?.[ej.nombre] || '';
+        fieldsHtml += `
+        <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
+            <div style="flex:1">
+              <div style="font-size:12px;font-weight:700">${ej.nombre}</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:1px">${ej.desc} · ${ej.series}</div>
+            </div>
+            <div style="font-size:9px;color:var(--orange);background:#1c0a00;padding:3px 8px;border-radius:6px;white-space:nowrap;flex-shrink:0">${sugerida}</div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span style="font-size:10px;color:var(--muted);flex-shrink:0">Registrá:</span>
+            <input type="text" placeholder="Lo que usaste hoy" value="${savedVal}"
+              data-ej="${ej.nombre}" inputmode="text"
+              style="flex:1;padding:7px 10px;border-radius:8px;border:1px solid var(--border);
+                     background:var(--card);color:var(--text);font-family:var(--fb);font-size:13px;outline:none">
+          </div>
+        </div>`;
+      });
+    });
+
+    // Vuelta a la calma
+    fieldsHtml += `<div style="background:#0a1020;border:1px solid #3b82f633;border-radius:10px;padding:10px 12px;margin-top:4px">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#3b82f6;margin-bottom:4px">🧘 VUELTA A LA CALMA</div>
+      <div style="font-size:11px;color:var(--muted)">${rutina.vuelta}</div>
+    </div>`;
+
+  } else {
+    // Sesión de club — solo nota
+    fieldsHtml = `<div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;color:var(--muted);font-size:12px">
+      Entrenamiento del club — registrá cómo se sintió la sesión en la nota.
+    </div>`;
+  }
+
+  document.getElementById('modal-cargas-fields').innerHTML = fieldsHtml;
+  document.getElementById('modal-overlay').style.display = 'flex';
+}
+
+function closeModal(e){
+  if(e.target.id === 'modal-overlay') closeModalBtn();
+}
+function closeModalBtn(){
+  document.getElementById('modal-overlay').style.display = 'none';
+  modalKey = null;
+}
+
+function saveModal(){
+  if(!modalKey) return;
+  const {mIdx, sem, dIdx} = modalKey;
+  const k    = rk(mIdx, sem, dIdx);
+  const nota = document.getElementById('modal-nota').value.trim();
+  const cargas = {};
+  document.querySelectorAll('#modal-cargas-fields input').forEach(inp => {
+    const v = inp.value.trim();
+    if(v) cargas[inp.dataset.ej] = v;
+  });
+  records[k] = { ...(records[k]||{}), nota, cargas };
+  saveData();
+  closeModalBtn();
+  render();
+}
+
+// ─── LUNCHERA DATA ────────────────────────────────────────────────────────────
+// 4 semanas rotativas. Mar/Mié/Jue = días de entrenamiento → más hidratos.
+// Cada día: { almuerzo, r1, r2, r3, nota, entrena }
+// r1=recreo 1 (liviano), r2=recreo 2 (sustancioso), r3=recreo 3 (dulce/rico)
+
+const LUNCHERA = {
+  semanas: [
+    // ── SEMANA A ─────────────────────────────────────────────────────────────
+    {
+      label: "Semana A",
+      dias: [
+        {
+          dia:"Lunes", entrena:false,
+          almuerzo:{ titulo:"🍗 Milanesa de pollo + arroz", desc:"Milanesa al horno fría (viaja bien). Arroz con un chorrito de oliva. Fácil de comer." },
+          r1:{ titulo:"🍌 Banana + 4 galletas de arroz", desc:"Liviano, energía rápida para arrancar el día." },
+          r2:{ titulo:"🥪 Sándwich de queso y jamón", desc:"Pan árabe o lactal, sin mayonesa. Rápido y llena." },
+          r3:{ titulo:"🍫 2 cuadraditos de chocolate", desc:"Un gustito real. Chocolate con leche, el favorito de los 12." },
+        },
+        {
+          dia:"Martes", entrena:true,
+          almuerzo:{ titulo:"🍝 Fideos con salsa boloñesa", desc:"Thermos o tupper con microondas. Hidratos clave antes del entreno de tarde." },
+          r1:{ titulo:"🍎 Manzana + mix de frutos secos", desc:"Puñado de maní o mix. Grasa buena, saciedad larga." },
+          r2:{ titulo:"🧇 Tostadas con manteca de maní", desc:"2 tostadas integrales. Rica y nutritiva para sostener el entreno." },
+          r3:{ titulo:"🧃 Alfajor de maicena casero", desc:"O uno comprado de los pequeños. Un clásico que lo va a amar." },
+        },
+        {
+          dia:"Miércoles", entrena:true,
+          almuerzo:{ titulo:"🍚 Arroz con pollo en cubos", desc:"Pollo salteado en cubos sobre arroz. Proteína + hidrato ideal para día de entreno." },
+          r1:{ titulo:"🍌 Banana + yogur en vasito", desc:"Cremoso, rico y llena bien el primer recreo." },
+          r2:{ titulo:"🥙 Wraps de pollo y lechuga", desc:"Tortilla de harina, pollo frío y un poco de lechuga. Práctico." },
+          r3:{ titulo:"🍪 2 galletitas con chocolate", desc:"Oreo, Pepitos o similar. Pequeño premio de mitad de semana." },
+        },
+        {
+          dia:"Jueves", entrena:true,
+          almuerzo:{ titulo:"🍔 Hamburguesa casera + puré en tupper", desc:"Hamburguesa de carne al horno + puré de papa. Se calienta perfecto." },
+          r1:{ titulo:"🍊 Mandarina + tostada", desc:"Vitamina C y algo sólido para no llegar con hambre al 2° recreo." },
+          r2:{ titulo:"🧀 Pan con queso fresco y tomate", desc:"Sencillo, rico, sin procesar. Le va a gustar." },
+          r3:{ titulo:"🍬 Gomitas o caramelos (poquitos)", desc:"Un gustito divertido. Importa la cantidad, no prohibirlos." },
+        },
+        {
+          dia:"Viernes", entrena:false,
+          almuerzo:{ titulo:"🌮 Tacos o burritos caseros", desc:"Tortilla con carne picada o pollo, queso. Viernes = algo rico y distinto." },
+          r1:{ titulo:"🍓 Frutas mixtas en vasito", desc:"Frutillas, uva, melón. Colorido y refrescante." },
+          r2:{ titulo:"🥪 Mini sándwich de miga x2", desc:"Jamón y queso o ave. Pequeños y fáciles de comer entre clases." },
+          r3:{ titulo:"🍭 Barrita de cereal con chocolate", desc:"Cereal + dulce = combo ganador para el viernes." },
+        },
+      ]
+    },
+
+    // ── SEMANA B ─────────────────────────────────────────────────────────────
+    {
+      label: "Semana B",
+      dias: [
+        {
+          dia:"Lunes", entrena:false,
+          almuerzo:{ titulo:"🍕 Porción de pizza casera", desc:"Pizza fría viaja perfecta en tupper. Queso, jamón o muzza sola." },
+          r1:{ titulo:"🍇 Uvas + nueces", desc:"Puñado de cada uno. Antioxidantes y grasa buena." },
+          r2:{ titulo:"🥚 Huevo duro + tostada", desc:"Proteína completa. Fácil de preparar la noche anterior." },
+          r3:{ titulo:"🍫 Tableta de chocolate con leche", desc:"Pequeña. El chocolate con leche es irresistible a los 12." },
+        },
+        {
+          dia:"Martes", entrena:true,
+          almuerzo:{ titulo:"🍝 Ñoquis con salsa de tomate", desc:"Con un poco de queso parmesano. Excelente fuente de hidratos para el entreno." },
+          r1:{ titulo:"🍌 Banana + leche chocolatada", desc:"Energía inmediata + proteína. Combinación clásica pre-esfuerzo." },
+          r2:{ titulo:"🧇 Panqueque con dulce de leche", desc:"Enrollado, fácil de comer. Rico y llena bien." },
+          r3:{ titulo:"🍪 Galletitas María con manteca", desc:"Súper simple, nostalgia pura, a los chicos les encanta." },
+        },
+        {
+          dia:"Miércoles", entrena:true,
+          almuerzo:{ titulo:"🍗 Pollo al limón + papas al horno", desc:"Todo en tupper, se calienta en micro. Sabor rico y nutritivo." },
+          r1:{ titulo:"🍎 Manzana + maní tostado", desc:"Crujiente y natural. Le da energía sin pesarle." },
+          r2:{ titulo:"🥪 Sándwich de pechuga y lechuga", desc:"Pan lactal, pechuga fría, lechuga y sal. Limpio y proteico." },
+          r3:{ titulo:"🧃 Alfajor de chocolate pequeño", desc:"Uno solo está perfecto como cierre del día." },
+        },
+        {
+          dia:"Jueves", entrena:true,
+          almuerzo:{ titulo:"🍲 Guiso de lentejas liviano", desc:"Con zanahoria y papa. Proteína vegetal + hidratos. Perfecto en tupper al micro." },
+          r1:{ titulo:"🍊 Naranja + galletitas de avena", desc:"Vitamina C para la recuperación + algo crujiente." },
+          r2:{ titulo:"🌯 Wrap con atún y queso", desc:"Si no le molesta el atún en bocado con queso — si no, cambiar por pollo." },
+          r3:{ titulo:"🍬 Palito de la selva o helado de agua", desc:"Si hace calor, un heladito es el premio perfecto del jueves." },
+        },
+        {
+          dia:"Viernes", entrena:false,
+          almuerzo:{ titulo:"🍔 Nuggets caseros + papas", desc:"Nuggets de pollo al horno con papas fritas al horno. Viernes festivo." },
+          r1:{ titulo:"🍓 Licuado en botella", desc:"Leche + banana + frutillas. Se puede llevar en botellita con tapa." },
+          r2:{ titulo:"🧀 Medialunas con queso", desc:"2 medialunas con queso en tira. Simple y rico." },
+          r3:{ titulo:"🍭 Chupetín o caramelo masticable", desc:"Pequeño capricho de viernes. Totalmente válido." },
+        },
+      ]
+    },
+
+    // ── SEMANA C ─────────────────────────────────────────────────────────────
+    {
+      label: "Semana C",
+      dias: [
+        {
+          dia:"Lunes", entrena:false,
+          almuerzo:{ titulo:"🥗 Ensalada de pasta con pollo", desc:"Farfalle frías con pollo, maíz y un chorrito de aceite. Fresca y completa." },
+          r1:{ titulo:"🍌 Banana + 2 galletitas de arroz", desc:"Rápido y no ensucia. Perfecto para primer recreo." },
+          r2:{ titulo:"🥪 Sándwich de queso y tomate", desc:"Pan de molde, queso en feta, rodaja de tomate. Refrescante." },
+          r3:{ titulo:"🍫 Palomitas de maíz dulces", desc:"Una bolsita pequeña. Diferente, divertido y no tan dulce." },
+        },
+        {
+          dia:"Martes", entrena:true,
+          almuerzo:{ titulo:"🍚 Arroz con carne en cubos y zapallitos", desc:"Saltado en sartén, todo junto. Rico y completo para el entreno." },
+          r1:{ titulo:"🍊 Mandarina + tostada con manteca", desc:"Cítrico + carbohidrato. Buen comienzo de día." },
+          r2:{ titulo:"🧇 Tostadas con miel y banana", desc:"Miel natural + banana pisada sobre tostada. Energía lenta, ideal para la tarde." },
+          r3:{ titulo:"🍪 Cookie de avena y chocolate", desc:"Casera o comprada. Nutritiva y muy rica." },
+        },
+        {
+          dia:"Miércoles", entrena:true,
+          almuerzo:{ titulo:"🌮 Quesadillas de pollo", desc:"Tortilla doblada con pollo y queso fundido. Se calienta genial en micro." },
+          r1:{ titulo:"🍇 Uvas + yogur en vasito", desc:"Fresco, liviano, sin exceso de azúcar." },
+          r2:{ titulo:"🥙 Rollito de jamón y queso", desc:"Jamón arrollado con queso en palito. Sin pan, fácil de comer." },
+          r3:{ titulo:"🍬 Gomitas de frutas", desc:"Un puñadito. Coloridas y divertidas." },
+        },
+        {
+          dia:"Jueves", entrena:true,
+          almuerzo:{ titulo:"🍗 Pollo al horno desmenuzado + arroz", desc:"Pollo desmenuzado mezclado con arroz y un toque de salsa. Fácil al micro." },
+          r1:{ titulo:"🍎 Manzana + maní", desc:"Clásico deportivo. Energía que dura." },
+          r2:{ titulo:"🥪 Mini pizza en pan árabe", desc:"Pan árabe con salsa y queso. Al micro queda crujiente." },
+          r3:{ titulo:"🍭 Alfajor de maicena", desc:"Suave, dulce justo. El clásico argentino que nunca falla." },
+        },
+        {
+          dia:"Viernes", entrena:false,
+          almuerzo:{ titulo:"🍕 Empanadas caseras x2-3", desc:"De carne, pollo o jamón y queso. Frías viajan perfectas." },
+          r1:{ titulo:"🍓 Frutas + chocolate en trozos", desc:"Frutillas o uvas con unos trocitos de chocolate. Combo ganador." },
+          r2:{ titulo:"🧇 Panqueque con mermelada", desc:"Enrollado con mermelada de frutilla. Un dulce que no pesa." },
+          r3:{ titulo:"🍫 Barrita Twix o similar", desc:"Viernes = merecido. Una barrita pequeña, sin culpa." },
+        },
+      ]
+    },
+
+    // ── SEMANA D ─────────────────────────────────────────────────────────────
+    {
+      label: "Semana D",
+      dias: [
+        {
+          dia:"Lunes", entrena:false,
+          almuerzo:{ titulo:"🍝 Espagueti con manteca y queso", desc:"Lo más simple y lo que más les gusta. Rápido de preparar y viaja perfecto." },
+          r1:{ titulo:"🍌 Banana + leche en botellita", desc:"Calcio + potasio. Perfecto para arrancar." },
+          r2:{ titulo:"🥪 Sándwich de miga x2", desc:"Jamón y queso clásico. El que nunca falla." },
+          r3:{ titulo:"🍪 Dos galletitas con dulce de leche", desc:"Pequeño placer, sabor argentino. Lo va a amar." },
+        },
+        {
+          dia:"Martes", entrena:true,
+          almuerzo:{ titulo:"🍔 Hamburguesa de carne + pan + papas", desc:"Todo en tupper. Al micro queda rico. Día de entreno = más combustible." },
+          r1:{ titulo:"🍊 Naranja + mix de cereales", desc:"Cítrico + fibra. Lento y sostenido." },
+          r2:{ titulo:"🧇 Tostadas con palta y sal", desc:"Grasa buena, saciedad larga. Cada vez más popular entre pibes." },
+          r3:{ titulo:"🍭 Caramelos Sugus", desc:"Un clásico. 3-4 son suficientes como gustito." },
+        },
+        {
+          dia:"Miércoles", entrena:true,
+          almuerzo:{ titulo:"🍗 Pollo gratinado + fideos", desc:"Pollo con queso derretido encima + fideos cortos. Al micro queda increíble." },
+          r1:{ titulo:"🍇 Uvas + 2 tostadas", desc:"Fruta + tostada = energía equilibrada." },
+          r2:{ titulo:"🌯 Burrito de arroz y pollo", desc:"Tortilla con arroz y pollo frío. Sencillo y llena bien." },
+          r3:{ titulo:"🍫 Chocolate blanco en cuadraditos", desc:"Diferente al chocolate común. Algo especial para mitad de semana." },
+        },
+        {
+          dia:"Jueves", entrena:true,
+          almuerzo:{ titulo:"🍲 Cazuela de pollo con papa y zapallo", desc:"Caldito liviano al micro. Reconfortante y nutritivo." },
+          r1:{ titulo:"🍌 Banana + galletitas de avena", desc:"Energía lenta + potasio." },
+          r2:{ titulo:"🥚 Huevo revuelto en tostada", desc:"Se puede hacer la mañana anterior y armar al momento. Proteína completa." },
+          r3:{ titulo:"🍬 Palito de la selva", desc:"El helado más querido. Si hace calor es lo mejor del jueves." },
+        },
+        {
+          dia:"Viernes", entrena:false,
+          almuerzo:{ titulo:"🌮 Tacos de carne y queso", desc:"Tortillas con carne picada y queso. Viernes rico, diferente y divertido." },
+          r1:{ titulo:"🍓 Gelatina con frutas", desc:"Se hace la noche anterior en vasito. Fresca y colorida." },
+          r2:{ titulo:"🧀 Medialunas x2 con jamón", desc:"Medialunas simples con una feta de jamón adentro." },
+          r3:{ titulo:"🍭 Lo que él elija", desc:"Viernes = autonomía. Dejalo elegir su gustito favorito esa semana." },
+        },
+      ]
+    },
+  ]
+};
+
+let lunchSemana = 0; // 0-3 = A-B-C-D
+let lunchDia    = 0; // 0-4 = Lun-Vie
+
+// ─── RENDER LUNCHERA ─────────────────────────────────────────────────────────
+function renderLunch(){
+  const sem  = LUNCHERA.semanas[lunchSemana];
+  const dia  = sem.dias[lunchDia];
+
+  // Selector de semana
+  let semSel = '';
+  LUNCHERA.semanas.forEach((s,i) => {
+    semSel += `<button onclick="setLunchSem(${i})"
+      style="flex:1;padding:8px 4px;border-radius:10px;border:1px solid ${i===lunchSemana?'var(--green)':'var(--border)'};
+      background:${i===lunchSemana?'var(--green)':'var(--card)'};
+      color:${i===lunchSemana?'#000':'var(--muted)'};font-size:11px;font-weight:700;cursor:pointer">${s.label}</button>`;
+  });
+
+  // Selector de día
+  const dias = ['Lun','Mar','Mié','Jue','Vie'];
+  let diaSel = '';
+  sem.dias.forEach((d,i) => {
+    const activo = i === lunchDia;
+    const entrena = d.entrena;
+    diaSel += `<button onclick="setLunchDia(${i})"
+      style="flex:1;padding:10px 4px;border-radius:12px;
+      border:1px solid ${activo ? (entrena?'var(--orange)':'var(--green)') : 'var(--border)'};
+      background:${activo ? (entrena?'#1c0a00':'#052e16') : 'var(--card)'};
+      color:${activo ? (entrena?'var(--orange)':'var(--green)') : 'var(--muted)'};
+      font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px">
+      <span>${dias[i]}</span>
+      ${entrena ? '<span style="font-size:8px">⚽</span>' : '<span style="font-size:8px">—</span>'}
+    </button>`;
+  });
+
+  const entrenaBadge = dia.entrena
+    ? `<div style="background:#1c0a00;border:1px solid var(--orange);border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:11px;color:var(--orange);font-weight:600">
+        ⚽ Día de entrenamiento — almuerzo con más hidratos para rendir en el club
+      </div>`
+    : `<div style="background:#052e16;border:1px solid var(--green);border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:11px;color:var(--green);font-weight:600">
+        💪 Día sin entreno — almuerzo equilibrado, sin cargar de más
+      </div>`;
+
+  const block = (emoji, titulo, contenido, color) => `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:${color};margin-bottom:8px">${emoji} ${titulo}</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px">${contenido.titulo}</div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.5">${contenido.desc}</div>
+    </div>`;
+
+  return `
+  <div style="padding:14px 16px 8px">
+    <div style="font-family:var(--fh);font-size:22px;letter-spacing:1px">🎒 LUNCHERA</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px">Plan semanal · Almuerzo + 3 recreos · Rota cada semana</div>
+  </div>
+
+  <div style="display:flex;gap:6px;padding:0 16px 12px">${semSel}</div>
+  <div style="display:flex;gap:6px;padding:0 16px 12px">${diaSel}</div>
+
+  <div style="padding:0 16px">
+    ${entrenaBadge}
+    ${block('🍽️','ALMUERZO (con microondas)', dia.almuerzo, '#3b82f6')}
+    ${block('☀️','RECREO 1 — Liviano', dia.r1, '#22c55e')}
+    ${block('🌤️','RECREO 2 — Sustancioso', dia.r2, '#eab308')}
+    ${block('🌙','RECREO 3 — Gustito rico', dia.r3, '#f97316')}
+
+    <div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-top:4px">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px">💧 HIDRATACIÓN</div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.6">
+        Siempre mandar <strong style="color:var(--text)">600 ml de agua</strong> en botellita. Los días de entreno (Mar/Mié/Jue) agregar una
+        <strong style="color:var(--text)">segunda botella</strong> o una bebida isotónica casera (agua + limón + pizca de sal + miel).
+      </div>
+    </div>
+  </div>
+  <div style="height:16px"></div>`;
+}
+
+function setLunchSem(i){ lunchSemana = i; render(); }
+function setLunchDia(i){ lunchDia    = i; render(); }
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
